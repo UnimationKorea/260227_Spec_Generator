@@ -1,4 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import MermaidDiagram from "./src/MermaidDiagram";
+import WireframePreview from "./src/WireframePreview";
+import { generateActivityFlow, generateActivityFullFlow } from "./src/flowGenerators";
 
 // ════════════════════════════════════════════════════════
 //  엔진 목록
@@ -500,6 +503,8 @@ export default function ActivitySpecGenerator() {
   const [showVerMenu, setShowVerMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [copiedSec, setCopiedSec] = useState(null);
+  const [showFlowModal, setShowFlowModal] = useState(null); // "section" | "full" | null
+  const [showWireframe, setShowWireframe] = useState(false);
   const engRef = useRef(null);
   const verRef = useRef(null);
 
@@ -669,13 +674,27 @@ export default function ActivitySpecGenerator() {
           </div>
         </div>
 
-        {/* 미리보기 버튼 */}
-        <button
-          style={{ ...S.previewBtn, ...(showPreview ? S.previewBtnOn : {}) }}
-          onClick={() => setShowPreview(o=>!o)}
-        >
-          {showPreview ? "← 질문으로" : "📄 명세서"}
-        </button>
+        {/* 미리보기/Flow/Wireframe 버튼 */}
+        <div style={{ display:"flex", gap:4 }}>
+          <button
+            style={{ ...S.previewBtn, ...(showPreview ? S.previewBtnOn : {}) }}
+            onClick={() => { setShowPreview(o=>!o); setShowFlowModal(null); setShowWireframe(false); }}
+          >
+            {showPreview ? "← 질문으로" : "📄 명세서"}
+          </button>
+          <button
+            style={{ ...S.previewBtn, ...(showFlowModal === "full" ? S.previewBtnOn : {}), borderColor:"#10B981", color: showFlowModal === "full" ? "#fff" : "#10B981", ...(showFlowModal === "full" ? { background:"#10B981" } : {}) }}
+            onClick={() => { setShowFlowModal(showFlowModal === "full" ? null : "full"); setShowPreview(false); setShowWireframe(false); }}
+          >
+            🔀 전체 Flow
+          </button>
+          <button
+            style={{ ...S.previewBtn, ...(showWireframe ? S.previewBtnOn : {}), borderColor:"#F59E0B", color: showWireframe ? "#fff" : "#F59E0B", ...(showWireframe ? { background:"#F59E0B" } : {}) }}
+            onClick={() => { setShowWireframe(w=>!w); setShowPreview(false); setShowFlowModal(null); }}
+          >
+            🖼 Wireframe
+          </button>
+        </div>
       </header>
 
       {/* ══════ 바디 ══════ */}
@@ -730,8 +749,32 @@ export default function ActivitySpecGenerator() {
               </div>
               <pre style={S.previewCode}>{markdown}</pre>
             </div>
+          ) : showFlowModal === "full" ? (
+            /* 전체 Flow 다이어그램 */
+            <div style={{ padding:24 }}>
+              <h2 style={{ fontSize:18, fontWeight:800, marginBottom:16, color:"#1a1a2e" }}>🔀 전체 프로젝트 Flow</h2>
+              <MermaidDiagram code={generateActivityFullFlow(answers)} />
+            </div>
+          ) : showWireframe ? (
+            /* Wireframe 미리보기 */
+            <div style={{ padding:24 }}>
+              <h2 style={{ fontSize:18, fontWeight:800, marginBottom:16, color:"#1a1a2e" }}>🖼 Wireframe 미리보기</h2>
+              <p style={{ fontSize:12, color:"#888", marginBottom:16 }}>UI/UX 섹션에서 선택한 화면의 와이어프레임을 미리 볼 수 있습니다.</p>
+              <WireframePreview selectedScreens={Array.isArray(answers.ui1) ? answers.ui1 : []} />
+            </div>
           ) : (
             <>
+              {/* 섹션 Flow 다이어그램 (펼쳐진 경우) */}
+              {showFlowModal && showFlowModal === section.id && (
+                <div style={{ background:"#F0FDF9", border:"1.5px solid #D1FAE5", borderRadius:14, padding:20, marginBottom:16 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                    <h3 style={{ fontSize:14, fontWeight:700, color:"#065F46" }}>🔀 {section.label} Flow</h3>
+                    <button onClick={() => setShowFlowModal(null)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:14, color:"#64748b" }}>✕</button>
+                  </div>
+                  <MermaidDiagram code={generateActivityFlow(section.id, answers)} />
+                </div>
+              )}
+
               {/* 섹션 헤더 */}
               <div style={S.secHead}>
                 <div style={{ ...S.secIcon, background: section.color }}>{section.emoji}</div>
@@ -744,6 +787,12 @@ export default function ActivitySpecGenerator() {
                   onClick={() => copySectionMD(section)}
                 >
                   {copiedSec===section.id ? "✅ 복사됨" : "📋 섹션 MD"}
+                </button>
+                <button
+                  style={{ padding:"5px 10px", borderRadius:7, border:"1.5px solid #D1FAE5", background: showFlowModal===section.id?"#ECFDF5":"#FAFAFA", cursor:"pointer", fontSize:11, fontWeight:600, color: showFlowModal===section.id?"#10B981":"#059669", whiteSpace:"nowrap", transition:"all .2s" }}
+                  onClick={() => setShowFlowModal(showFlowModal===section.id ? null : section.id)}
+                >
+                  {showFlowModal===section.id ? "✕ 닫기" : "🔀 Flow"}
                 </button>
                 <div style={S.secCounter}>
                   {(() => { const {done:d,total:t}=secProg(section,answers); return `${d}/${t} 완료`; })()}

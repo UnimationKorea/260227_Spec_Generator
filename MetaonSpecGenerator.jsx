@@ -1,4 +1,7 @@
 import { useState, useRef, useCallback } from "react";
+import MermaidDiagram from "./src/MermaidDiagram";
+import WireframePreview from "./src/WireframePreview";
+import { generateMetaonFlow, generateMetaonFullFlow } from "./src/flowGenerators";
 
 // ─── ENGINE & VERSION DATA ───
 const ENGINES = [
@@ -1232,6 +1235,8 @@ export default function MetaonSpecGenerator() {
 
   const [showStats, setShowStats] = useState(false);
   const [copiedSec, setCopiedSec] = useState(null);
+  const [showFlowModal, setShowFlowModal] = useState(null); // sectionId | "full" | null
+  const [showWireframe, setShowWireframe] = useState(false);
 
   const copySectionMD = (sec) => {
     const md = generateSectionMD(sec, answers);
@@ -1322,6 +1327,18 @@ export default function MetaonSpecGenerator() {
                 background: showStats ? "linear-gradient(135deg,#f59e0b,#f97316)" : "rgba(255,255,255,.05)",
                 color: showStats ? "#fff" : "#94a3b8", transition:"all .2s", fontFamily:"inherit" }}>
               📊 통계
+            </button>
+            <button onClick={() => { setShowFlowModal(showFlowModal === "full" ? null : "full"); setShowStats(false); setShowWireframe(false); }}
+              style={{ padding:"6px 14px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
+                background: showFlowModal === "full" ? "linear-gradient(135deg,#059669,#10b981)" : "rgba(255,255,255,.05)",
+                color: showFlowModal === "full" ? "#fff" : "#94a3b8", transition:"all .2s", fontFamily:"inherit" }}>
+              🔀 전체 Flow
+            </button>
+            <button onClick={() => { setShowWireframe(!showWireframe); setShowFlowModal(null); setShowStats(false); }}
+              style={{ padding:"6px 14px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
+                background: showWireframe ? "linear-gradient(135deg,#d97706,#f59e0b)" : "rgba(255,255,255,.05)",
+                color: showWireframe ? "#fff" : "#94a3b8", transition:"all .2s", fontFamily:"inherit" }}>
+              🖼 Wireframe
             </button>
           </div>
           <div style={{ marginLeft:"auto",display:"flex",alignItems:"center",gap:10 }}>
@@ -1539,6 +1556,33 @@ export default function MetaonSpecGenerator() {
 
         {/* CONTENT */}
         <main style={{ flex:1,minWidth:0 }}>
+          {/* FULL FLOW DIAGRAM */}
+          {showFlowModal === "full" && (
+            <div style={{ marginBottom:20,animation:"fadeIn .25s" }}>
+              <div style={{ background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:14,padding:"22px 26px" }}>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+                  <h2 style={{ fontSize:17,fontWeight:700,color:"#f1f5f9" }}>🔀 전체 시스템 Flow</h2>
+                  <button onClick={() => setShowFlowModal(null)} style={{ background:"rgba(255,255,255,.05)",border:"none",borderRadius:6,width:28,height:28,color:"#94a3b8",cursor:"pointer",fontSize:14 }}>✕</button>
+                </div>
+                <MermaidDiagram code={generateMetaonFullFlow(answers)} />
+              </div>
+            </div>
+          )}
+
+          {/* WIREFRAME PREVIEW */}
+          {showWireframe && (
+            <div style={{ marginBottom:20,animation:"fadeIn .25s" }}>
+              <div style={{ background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.05)",borderRadius:14,padding:"22px 26px" }}>
+                <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
+                  <h2 style={{ fontSize:17,fontWeight:700,color:"#f1f5f9" }}>🖼 Wireframe 미리보기</h2>
+                  <button onClick={() => setShowWireframe(false)} style={{ background:"rgba(255,255,255,.05)",border:"none",borderRadius:6,width:28,height:28,color:"#94a3b8",cursor:"pointer",fontSize:14 }}>✕</button>
+                </div>
+                <p style={{ fontSize:12,color:"#64748b",marginBottom:16 }}>UI/UX 섹션에서 선택한 화면의 와이어프레임을 미리 볼 수 있습니다.</p>
+                <WireframePreview selectedScreens={Array.isArray(answers.ux1) ? answers.ux1 : []} />
+              </div>
+            </div>
+          )}
+
           {/* STATS DASHBOARD */}
           {showStats && (
             <div style={{ marginBottom:20,animation:"fadeIn .25s" }}>
@@ -1646,6 +1690,12 @@ export default function MetaonSpecGenerator() {
                     >
                       {copiedSec===section.id ? "✅ 복사됨" : "📋 섹션 MD"}
                     </button>
+                    <button
+                      onClick={() => setShowFlowModal(showFlowModal===section.id ? null : section.id)}
+                      style={{ padding:"6px 12px",borderRadius:7,border:"1px solid rgba(16,185,129,.2)",background:showFlowModal===section.id?"rgba(16,185,129,.1)":"rgba(255,255,255,.04)",color:showFlowModal===section.id?"#4ade80":"#10b981",cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",transition:"all .2s" }}
+                    >
+                      {showFlowModal===section.id ? "✕ 닫기" : "🔀 Flow"}
+                    </button>
                     <div style={{ textAlign:"right" }}>
                       <div style={{ fontSize:20,fontWeight:800,color:sp.pct===100?"#4ade80":"#6366f1",fontFamily:"'JetBrains Mono',monospace" }}>{sp.pct}%</div>
                       <div style={{ fontSize:10,color:"#64748b" }}>{sp.answered}/{sp.total} 응답</div>
@@ -1655,6 +1705,17 @@ export default function MetaonSpecGenerator() {
                     <div style={{ height:"100%",background:sp.pct===100?"#4ade80":"linear-gradient(90deg,#6366f1,#a78bfa)",width:`${sp.pct}%`,transition:"width .4s" }}/>
                   </div>
                 </div>
+
+                {/* Section Flow Diagram */}
+                {showFlowModal === section.id && (
+                  <div style={{ background:"rgba(16,185,129,.04)",border:"1px solid rgba(16,185,129,.15)",borderRadius:12,padding:20,marginBottom:16,animation:"fadeIn .25s" }}>
+                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12 }}>
+                      <h3 style={{ fontSize:14,fontWeight:700,color:"#4ade80" }}>🔀 {section.title} Flow</h3>
+                      <button onClick={() => setShowFlowModal(null)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#64748b" }}>✕</button>
+                    </div>
+                    <MermaidDiagram code={generateMetaonFlow(section.id, answers)} />
+                  </div>
+                )}
 
                 {/* Questions */}
                 {section.questions.map((q, qi) => {
