@@ -674,28 +674,33 @@ export default function ActivitySpecGenerator() {
           </div>
         </div>
 
-        {/* 미리보기/Flow/Wireframe 버튼 */}
-        <div style={{ display:"flex", gap:4 }}>
-          <button
-            style={{ ...S.previewBtn, ...(showPreview ? S.previewBtnOn : {}) }}
-            onClick={() => { setShowPreview(o=>!o); setShowFlowModal(null); setShowWireframe(false); }}
-          >
-            {showPreview ? "← 질문으로" : "📄 명세서"}
-          </button>
-          <button
-            style={{ ...S.previewBtn, ...(showFlowModal === "full" ? S.previewBtnOn : {}), borderColor:"#10B981", color: showFlowModal === "full" ? "#fff" : "#10B981", ...(showFlowModal === "full" ? { background:"#10B981" } : {}) }}
-            onClick={() => { setShowFlowModal(showFlowModal === "full" ? null : "full"); setShowPreview(false); setShowWireframe(false); }}
-          >
-            🔀 전체 Flow
-          </button>
-          <button
-            style={{ ...S.previewBtn, ...(showWireframe ? S.previewBtnOn : {}), borderColor:"#F59E0B", color: showWireframe ? "#fff" : "#F59E0B", ...(showWireframe ? { background:"#F59E0B" } : {}) }}
-            onClick={() => { setShowWireframe(w=>!w); setShowPreview(false); setShowFlowModal(null); }}
-          >
-            🖼 Wireframe
-          </button>
-        </div>
+        {/* 미리보기 버튼 */}
+        <button
+          style={{ ...S.previewBtn, ...(showPreview ? S.previewBtnOn : {}) }}
+          onClick={() => { setShowPreview(o=>!o); setShowFlowModal(null); setShowWireframe(false); }}
+        >
+          {showPreview ? "← 질문으로" : "📄 명세서"}
+        </button>
       </header>
+
+      {/* ── 보조 툴바 (Flow / Wireframe) ─── */}
+      <div style={{ background:"#F5F3FF", borderBottom:"1.5px solid #E0DCFF", padding:"6px 16px", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+        <span style={{ fontSize:11, fontWeight:700, color:"#7C3AED", marginRight:4 }}>다이어그램 ▸</span>
+        <button
+          onClick={() => { setShowFlowModal(showFlowModal === "full" ? null : "full"); setShowPreview(false); setShowWireframe(false); }}
+          style={{ padding:"4px 14px", borderRadius:6, border:"1.5px solid #10B981", background: showFlowModal === "full" ? "#10B981" : "transparent", color: showFlowModal === "full" ? "#fff" : "#059669", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", transition:"all .2s" }}
+        >
+          🔀 전체 Flow
+        </button>
+        <button
+          onClick={() => { setShowWireframe(w=>!w); setShowPreview(false); setShowFlowModal(null); }}
+          style={{ padding:"4px 14px", borderRadius:6, border:"1.5px solid #F59E0B", background: showWireframe ? "#F59E0B" : "transparent", color: showWireframe ? "#fff" : "#D97706", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", transition:"all .2s" }}
+        >
+          🖼 Wireframe
+        </button>
+        <span style={{ fontSize:11, fontWeight:700, color:"#7C3AED", marginLeft:12, marginRight:4 }}>섹션 ▸</span>
+        <span style={{ fontSize:10, color:"#9CA3AF" }}>각 섹션 오른쪽의 <strong>🔀 Flow</strong> 버튼을 클릭하면 해당 섹션의 다이어그램이 표시됩니다</span>
+      </div>
 
       {/* ══════ 바디 ══════ */}
       <div style={S.body}>

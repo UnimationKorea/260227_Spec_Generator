@@ -1328,18 +1328,6 @@ export default function MetaonSpecGenerator() {
                 color: showStats ? "#fff" : "#94a3b8", transition:"all .2s", fontFamily:"inherit" }}>
               📊 통계
             </button>
-            <button onClick={() => { setShowFlowModal(showFlowModal === "full" ? null : "full"); setShowStats(false); setShowWireframe(false); }}
-              style={{ padding:"6px 14px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
-                background: showFlowModal === "full" ? "linear-gradient(135deg,#059669,#10b981)" : "rgba(255,255,255,.05)",
-                color: showFlowModal === "full" ? "#fff" : "#94a3b8", transition:"all .2s", fontFamily:"inherit" }}>
-              🔀 전체 Flow
-            </button>
-            <button onClick={() => { setShowWireframe(!showWireframe); setShowFlowModal(null); setShowStats(false); }}
-              style={{ padding:"6px 14px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,
-                background: showWireframe ? "linear-gradient(135deg,#d97706,#f59e0b)" : "rgba(255,255,255,.05)",
-                color: showWireframe ? "#fff" : "#94a3b8", transition:"all .2s", fontFamily:"inherit" }}>
-              🖼 Wireframe
-            </button>
           </div>
           <div style={{ marginLeft:"auto",display:"flex",alignItems:"center",gap:10 }}>
             <div style={{ display:"flex",alignItems:"center",gap:5 }}>
@@ -1353,6 +1341,25 @@ export default function MetaonSpecGenerator() {
           </div>
         </div>
       </nav>
+
+      {/* ─── 보조 툴바 (Flow / Wireframe) ─── */}
+      <div style={{ background:"rgba(99,102,241,.06)", borderBottom:"1px solid rgba(99,102,241,.15)", padding:"6px 20px", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+        <span style={{ fontSize:11, fontWeight:700, color:"#a78bfa", marginRight:4 }}>다이어그램 ▸</span>
+        <button
+          onClick={() => { setShowFlowModal(showFlowModal === "full" ? null : "full"); setShowStats(false); setShowWireframe(false); }}
+          style={{ padding:"4px 14px", borderRadius:6, border:"1px solid #10b981", background: showFlowModal === "full" ? "#10b981" : "transparent", color: showFlowModal === "full" ? "#fff" : "#10b981", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", transition:"all .2s" }}
+        >
+          🔀 전체 Flow
+        </button>
+        <button
+          onClick={() => { setShowWireframe(!showWireframe); setShowFlowModal(null); setShowStats(false); }}
+          style={{ padding:"4px 14px", borderRadius:6, border:"1px solid #f59e0b", background: showWireframe ? "#f59e0b" : "transparent", color: showWireframe ? "#fff" : "#f59e0b", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", transition:"all .2s" }}
+        >
+          🖼 Wireframe
+        </button>
+        <span style={{ fontSize:11, fontWeight:700, color:"#a78bfa", marginLeft:12, marginRight:4 }}>섹션 ▸</span>
+        <span style={{ fontSize:10, color:"#64748b" }}>각 섹션 오른쪽의 <strong style={{ color:"#94a3b8" }}>🔀 Flow</strong> 버튼을 클릭하면 해당 섹션 다이어그램이 표시됩니다</span>
+      </div>
 
       {/* ─── MODALS ─── */}
       {showModal === "engine" && (
