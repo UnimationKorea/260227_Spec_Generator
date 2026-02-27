@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import MermaidDiagram from "./src/MermaidDiagram";
 import WireframePreview from "./src/WireframePreview";
+import SectionDashboard from "./src/SectionDashboard";
 import { generateActivityFlow, generateActivityFullFlow } from "./src/flowGenerators";
 
 // ════════════════════════════════════════════════════════
@@ -15,7 +16,7 @@ const ENGINES = [
 // ════════════════════════════════════════════════════════
 //  질문 데이터 — 초등 언어교육 앱 전용
 // ════════════════════════════════════════════════════════
-const SECTIONS = [
+const DEFAULT_SECTIONS = [
   // ── 1. 프로젝트 개요 ─────────────────────────────────
   {
     id: "overview", label: "프로젝트 개요", emoji: "📋", color: "#6366F1",
@@ -284,10 +285,10 @@ function bumpSeq(versions, date) {
 // ════════════════════════════════════════════════════════
 //  유틸
 // ════════════════════════════════════════════════════════
-const totalQ = () => SECTIONS.reduce((s, sec) => s + sec.questions.length, 0);
+const totalQOf = (secs) => secs.reduce((s, sec) => s + sec.questions.length, 0);
 
-function calcProgress(answers) {
-  const total = totalQ();
+function calcProgress(answers, secs) {
+  const total = totalQOf(secs);
   const done = Object.values(answers).filter(
     v => v && (Array.isArray(v) ? v.length > 0 : v.trim())
   ).length;
@@ -490,8 +491,19 @@ function generateMD(answers, versionId, engine) {
 // ════════════════════════════════════════════════════════
 //  메인 앱
 // ════════════════════════════════════════════════════════
+const STORAGE_KEY_SECTIONS = "speccraft_sections_activity";
+
 export default function ActivitySpecGenerator() {
   const initVer = () => { const {date,full}=makeVersionId(); return [{id:full,date,label:full,createdAt:new Date().toLocaleString("ko-KR"),answers:{},engine:"claude-opus-4-6"}]; };
+
+  // 섹션 데이터 — localStorage에서 불러오거나 기본값 사용
+  const [sections, setSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SECTIONS);
+      return saved ? JSON.parse(saved) : DEFAULT_SECTIONS;
+    } catch { return DEFAULT_SECTIONS; }
+  });
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const [versions, setVersions] = useState(initVer);
   const [activeVerId, setActiveVerId] = useState(() => initVer()[0].id);
@@ -567,8 +579,8 @@ export default function ActivitySpecGenerator() {
   };
 
   const markdown = generateMD(answers, activeVerId, engine);
-  const { done, total, pct } = calcProgress(answers);
-  const section = SECTIONS[activeSec];
+  const { done, total, pct } = calcProgress(answers, sections);
+  const section = sections[activeSec];
   const engObj = ENGINES.find(e => e.id === engine);
 
   const copy = () => {
@@ -700,15 +712,43 @@ export default function ActivitySpecGenerator() {
         </button>
         <span style={{ fontSize:11, fontWeight:700, color:"#7C3AED", marginLeft:12, marginRight:4 }}>섹션 ▸</span>
         <span style={{ fontSize:10, color:"#9CA3AF" }}>각 섹션 오른쪽의 <strong>🔀 Flow</strong> 버튼을 클릭하면 해당 섹션의 다이어그램이 표시됩니다</span>
+        <div style={{ marginLeft:"auto" }}>
+          <button
+            onClick={() => setShowDashboard(true)}
+            style={{ padding:"4px 14px", borderRadius:6, border:"1.5px solid #7C3AED", background:"transparent", color:"#7C3AED", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", transition:"all .2s" }}
+          >
+            🗂 대시보드 (섹션 편집)
+          </button>
+        </div>
       </div>
+
+      {/* 대시보드 모달 */}
+      {showDashboard && (
+        <SectionDashboard
+          sections={sections}
+          onSave={(newSecs) => {
+            setSections(newSecs);
+            try { localStorage.setItem(STORAGE_KEY_SECTIONS, JSON.stringify(newSecs)); } catch {}
+            setActiveSec(0);
+            setShowDashboard(false);
+          }}
+          onClose={() => setShowDashboard(false)}
+        />
+      )}
 
       {/* ══════ 바디 ══════ */}
       <div style={S.body}>
         {/* 사이드바 */}
         {sidebarOpen && (
           <nav style={S.sidebar}>
-            <div style={S.sidebarHead}>섹션 ({SECTIONS.length})</div>
-            {SECTIONS.map((sec, idx) => {
+            <div style={{ ...S.sidebarHead, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span>섹션 ({sections.length})</span>
+              <button onClick={() => setShowDashboard(true)}
+                style={{ padding:"2px 8px", borderRadius:5, border:"1px solid #C4B5FD", background:"#F5F3FF", color:"#7C3AED", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit" }}>
+                🗂 편집
+              </button>
+            </div>
+            {sections.map((sec, idx) => {
               const {done:d, total:t} = secProg(sec, answers);
               const isAct = idx === activeSec;
               const pctS = Math.round((d/t)*100);
@@ -849,9 +889,9 @@ export default function ActivitySpecGenerator() {
                   <button style={S.btnPrev} onClick={() => setActiveSec(activeSec-1)}>← 이전</button>
                 )}
                 <div style={{ flex:1, textAlign:"center" }}>
-                  <span style={{ fontSize:12, color:"#aaa" }}>{activeSec+1} / {SECTIONS.length}</span>
+                  <span style={{ fontSize:12, color:"#aaa" }}>{activeSec+1} / {sections.length}</span>
                 </div>
-                {activeSec < SECTIONS.length-1 ? (
+                {activeSec < sections.length-1 ? (
                   <button style={{ ...S.btnNext, background: section.color }}
                     onClick={() => setActiveSec(activeSec+1)}>
                     다음 →

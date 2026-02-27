@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import MermaidDiagram from "./src/MermaidDiagram";
 import WireframePreview from "./src/WireframePreview";
+import SectionDashboard from "./src/SectionDashboard";
 import { generateMetaonFlow, generateMetaonFullFlow } from "./src/flowGenerators";
 
 // ─── ENGINE & VERSION DATA ───
@@ -18,7 +19,7 @@ const VERSIONS = [
 ];
 
 // ─── MASSIVE SECTIONS DATA ───
-const SECTIONS = [
+const DEFAULT_SECTIONS = [
   // ====== 1. PROJECT OVERVIEW ======
   {
     id: "overview", icon: "📋", title: "프로젝트 개요",
@@ -1226,6 +1227,8 @@ function generateSpecDocMD(answers, engine, version, SECTIONS_DATA, totalQ, answ
 }
 
 // ─── MAIN APP ───
+const STORAGE_KEY_SECTIONS_M = "speccraft_sections_metaon";
+
 export default function MetaonSpecGenerator() {
   const [selectedEngine, setSelectedEngine] = useState("opus-4.6");
   const [activeSection, setActiveSection] = useState("overview");
@@ -1237,6 +1240,15 @@ export default function MetaonSpecGenerator() {
   const [copiedSec, setCopiedSec] = useState(null);
   const [showFlowModal, setShowFlowModal] = useState(null); // sectionId | "full" | null
   const [showWireframe, setShowWireframe] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+
+  // 섹션 데이터 — localStorage에서 불러오거나 기본값 사용
+  const [sections, setSections] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_SECTIONS_M);
+      return saved ? JSON.parse(saved) : DEFAULT_SECTIONS;
+    } catch { return DEFAULT_SECTIONS; }
+  });
 
   const copySectionMD = (sec) => {
     const md = generateSectionMD(sec, answers);
@@ -1257,7 +1269,7 @@ export default function MetaonSpecGenerator() {
     });
   }, []);
 
-  const totalQ = SECTIONS.reduce((s, sec) => s + sec.questions.length, 0);
+  const totalQ = sections.reduce((s, sec) => s + sec.questions.length, 0);
   const answeredQ = Object.keys(answers).filter(k => {
     const v = answers[k];
     return v !== undefined && v !== "" && (!Array.isArray(v) || v.length > 0);
@@ -1274,7 +1286,7 @@ export default function MetaonSpecGenerator() {
     return { answered, total: sec.questions.length, pct: Math.round((answered / sec.questions.length) * 100) };
   };
 
-  const filteredSections = SECTIONS;
+  const filteredSections = sections;
 
   return (
     <div style={{ minHeight: "100vh", background: "#080b14", fontFamily: "'Noto Sans KR', -apple-system, sans-serif", color: "#e2e8f0" }}>
@@ -1359,7 +1371,29 @@ export default function MetaonSpecGenerator() {
         </button>
         <span style={{ fontSize:11, fontWeight:700, color:"#a78bfa", marginLeft:12, marginRight:4 }}>섹션 ▸</span>
         <span style={{ fontSize:10, color:"#64748b" }}>각 섹션 오른쪽의 <strong style={{ color:"#94a3b8" }}>🔀 Flow</strong> 버튼을 클릭하면 해당 섹션 다이어그램이 표시됩니다</span>
+        <div style={{ marginLeft:"auto" }}>
+          <button
+            onClick={() => setShowDashboard(true)}
+            style={{ padding:"4px 14px", borderRadius:6, border:"1px solid rgba(167,139,250,.4)", background:"rgba(167,139,250,.08)", color:"#a78bfa", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", transition:"all .2s" }}
+          >
+            🗂 대시보드 (섹션 편집)
+          </button>
+        </div>
       </div>
+
+      {/* 대시보드 모달 */}
+      {showDashboard && (
+        <SectionDashboard
+          sections={sections}
+          onSave={(newSecs) => {
+            setSections(newSecs);
+            try { localStorage.setItem(STORAGE_KEY_SECTIONS_M, JSON.stringify(newSecs)); } catch {}
+            setActiveSection(newSecs[0]?.id ?? "overview");
+            setShowDashboard(false);
+          }}
+          onClose={() => setShowDashboard(false)}
+        />
+      )}
 
       {/* ─── MODALS ─── */}
       {showModal === "engine" && (
@@ -1423,7 +1457,7 @@ export default function MetaonSpecGenerator() {
             {/* Summary by section group */}
             <div style={{ marginBottom:16 }}>
               {SECTION_GROUPS.map(group => {
-                const groupSections = group.sections.map(sid => SECTIONS.find(s=>s.id===sid)).filter(Boolean);
+                const groupSections = group.sections.map(sid => sections.find(s=>s.id===sid)).filter(Boolean);
                 const gA = groupSections.reduce((s,sec) => s + getSectionProgress(sec).answered, 0);
                 const gT = groupSections.reduce((s,sec) => s + sec.questions.length, 0);
                 const gP = gT > 0 ? Math.round((gA/gT)*100) : 0;
@@ -1443,7 +1477,7 @@ export default function MetaonSpecGenerator() {
             <div style={{ marginBottom:16,padding:"12px",borderRadius:10,background:"rgba(255,255,255,.02)",border:"1px solid rgba(255,255,255,.04)" }}>
               <div style={{ fontSize:12,fontWeight:600,color:"#a5b4fc",marginBottom:8 }}>📋 섹션별 Markdown 복사</div>
               <div style={{ display:"flex",flexWrap:"wrap",gap:4 }}>
-                {SECTIONS.map(sec => {
+                {sections.map(sec => {
                   const sp = getSectionProgress(sec);
                   if (sp.answered === 0) return null;
                   return (
@@ -1462,7 +1496,7 @@ export default function MetaonSpecGenerator() {
             <div style={{ display:"flex",gap:8 }}>
               <button onClick={() => {
                 const exportData = { engine: selectedEngine, version: currentVersion.id, date: new Date().toISOString(), progress: `${answeredQ}/${totalQ}`, answers: {} };
-                SECTIONS.forEach(sec => { sec.questions.forEach(q => { if (answers[q.id] !== undefined) exportData.answers[q.id] = { section: sec.title, question: q.q, answer: answers[q.id] }; }); });
+                sections.forEach(sec => { sec.questions.forEach(q => { if (answers[q.id] !== undefined) exportData.answers[q.id] = { section: sec.title, question: q.q, answer: answers[q.id] }; }); });
                 const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a"); a.href = url; a.download = `metaon-spec-answers-${new Date().toISOString().slice(0,10)}.json`; a.click();
@@ -1471,13 +1505,13 @@ export default function MetaonSpecGenerator() {
                 📥 JSON 다운로드
               </button>
               <button onClick={() => {
-                const md = generateFullMD(answers, currentEngine, currentVersion, SECTIONS, totalQ, answeredQ, progress);
+                const md = generateFullMD(answers, currentEngine, currentVersion, sections, totalQ, answeredQ, progress);
                 navigator.clipboard.writeText(md).then(() => alert("✅ Markdown이 클립보드에 복사되었습니다!"));
               }} style={{ flex:1,padding:"10px 16px",borderRadius:8,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.04)",color:"#e2e8f0",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit" }}>
                 📋 전체 Markdown 복사
               </button>
               <button onClick={() => {
-                const md = generateFullMD(answers, currentEngine, currentVersion, SECTIONS, totalQ, answeredQ, progress);
+                const md = generateFullMD(answers, currentEngine, currentVersion, sections, totalQ, answeredQ, progress);
                 const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a"); a.href = url; a.download = `metaon-spec-${new Date().toISOString().slice(0,10)}.md`; a.click();
@@ -1500,11 +1534,15 @@ export default function MetaonSpecGenerator() {
             <input className="tinp" placeholder="🔍 섹션 검색..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}
               style={{ marginBottom:8,fontSize:11,padding:"7px 10px" }} />
             
-            <div style={{ fontSize:10,fontWeight:600,color:"#475569",textTransform:"uppercase",letterSpacing:"1px",padding:"4px 6px",marginBottom:4 }}>
-              총 {SECTIONS.length}개 섹션 · {totalQ}문항
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 6px",marginBottom:4 }}>
+              <span style={{ fontSize:10,fontWeight:600,color:"#475569",textTransform:"uppercase",letterSpacing:"1px" }}>총 {sections.length}개 섹션 · {totalQ}문항</span>
+              <button onClick={() => setShowDashboard(true)}
+                style={{ padding:"2px 8px",borderRadius:5,border:"1px solid rgba(167,139,250,.3)",background:"rgba(167,139,250,.08)",color:"#a78bfa",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit" }}>
+                🗂 편집
+              </button>
             </div>
             {SECTION_GROUPS.map(group => {
-              const groupSections = group.sections.map(sid => SECTIONS.find(s=>s.id===sid)).filter(Boolean);
+              const groupSections = group.sections.map(sid => sections.find(s=>s.id===sid)).filter(Boolean);
               const matchedSections = searchTerm
                 ? groupSections.filter(s => s.title.includes(searchTerm) || s.desc.includes(searchTerm) || s.questions.some(q=>q.q.includes(searchTerm)))
                 : groupSections;
@@ -1598,7 +1636,7 @@ export default function MetaonSpecGenerator() {
                 {/* Overall */}
                 <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20 }}>
                   {[
-                    { label:"총 섹션", value: SECTIONS.length, color:"#6366f1" },
+                    { label:"총 섹션", value: sections.length, color:"#6366f1" },
                     { label:"총 문항", value: totalQ, color:"#8b5cf6" },
                     { label:"응답 완료", value: answeredQ, color:"#22c55e" },
                     { label:"진행률", value: `${progress}%`, color: progress===100?"#22c55e":"#f59e0b" },
@@ -1612,7 +1650,7 @@ export default function MetaonSpecGenerator() {
                 {/* By group */}
                 <div style={{ fontSize:13,fontWeight:600,color:"#e2e8f0",marginBottom:10 }}>도메인별 진행률</div>
                 {SECTION_GROUPS.map(group => {
-                  const gSecs = group.sections.map(sid => SECTIONS.find(s=>s.id===sid)).filter(Boolean);
+                  const gSecs = group.sections.map(sid => sections.find(s=>s.id===sid)).filter(Boolean);
                   const gA = gSecs.reduce((s,sec) => s + getSectionProgress(sec).answered, 0);
                   const gT = gSecs.reduce((s,sec) => s + sec.questions.length, 0);
                   const gP = gT>0?Math.round((gA/gT)*100):0;
@@ -1655,7 +1693,7 @@ export default function MetaonSpecGenerator() {
               <div style={{ background:"rgba(239,68,68,.04)",border:"1px solid rgba(239,68,68,.1)",borderRadius:12,padding:"16px 20px" }}>
                 <div style={{ fontSize:13,fontWeight:600,color:"#fca5a5",marginBottom:10 }}>⚠️ 미완료 섹션 바로가기</div>
                 <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-                  {SECTIONS.filter(s => getSectionProgress(s).pct < 100).map(sec => {
+                  {sections.filter(s => getSectionProgress(s).pct < 100).map(sec => {
                     const sp = getSectionProgress(sec);
                     return (
                       <button key={sec.id} onClick={()=>{setActiveSection(sec.id);setShowStats(false);window.scrollTo({top:0,behavior:"smooth"});}}
@@ -1670,14 +1708,14 @@ export default function MetaonSpecGenerator() {
                       </button>
                     );
                   })}
-                  {SECTIONS.filter(s => getSectionProgress(s).pct < 100).length === 0 && (
+                  {sections.filter(s => getSectionProgress(s).pct < 100).length === 0 && (
                     <span style={{ fontSize:12,color:"#4ade80" }}>🎉 모든 섹션이 완료되었습니다!</span>
                   )}
                 </div>
               </div>
             </div>
           )}
-          {SECTIONS.filter(s => s.id === activeSection).map(section => {
+          {sections.filter(s => s.id === activeSection).map(section => {
             const sp = getSectionProgress(section);
             return (
               <div key={section.id} style={{ animation:"fadeIn .25s" }}>
@@ -1768,21 +1806,21 @@ export default function MetaonSpecGenerator() {
 
                 {/* Nav Buttons */}
                 <div style={{ display:"flex",justifyContent:"space-between",marginTop:24 }}>
-                  {SECTIONS.findIndex(s=>s.id===activeSection)>0 && (
-                    <button onClick={()=>{const i=SECTIONS.findIndex(s=>s.id===activeSection);setActiveSection(SECTIONS[i-1].id);window.scrollTo({top:0,behavior:"smooth"});}}
+                  {sections.findIndex(s=>s.id===activeSection)>0 && (
+                    <button onClick={()=>{const i=sections.findIndex(s=>s.id===activeSection);setActiveSection(sections[i-1].id);window.scrollTo({top:0,behavior:"smooth"});}}
                       style={{ padding:"10px 20px",borderRadius:10,border:"1px solid rgba(255,255,255,.08)",background:"rgba(255,255,255,.03)",color:"#94a3b8",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit" }}>
                       ← 이전
                     </button>
                   )}
                   <div style={{flex:1}}/>
-                  {SECTIONS.findIndex(s=>s.id===activeSection)<SECTIONS.length-1 ? (
-                    <button onClick={()=>{const i=SECTIONS.findIndex(s=>s.id===activeSection);setActiveSection(SECTIONS[i+1].id);window.scrollTo({top:0,behavior:"smooth"});}}
+                  {sections.findIndex(s=>s.id===activeSection)<sections.length-1 ? (
+                    <button onClick={()=>{const i=sections.findIndex(s=>s.id===activeSection);setActiveSection(sections[i+1].id);window.scrollTo({top:0,behavior:"smooth"});}}
                       style={{ padding:"10px 20px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit",boxShadow:"0 4px 12px rgba(99,102,241,.3)" }}>
                       다음 →
                     </button>
                   ) : (
                     <button onClick={()=>{
-                      const md = generateSpecDocMD(answers, currentEngine, currentVersion, SECTIONS, totalQ, answeredQ, progress);
+                      const md = generateSpecDocMD(answers, currentEngine, currentVersion, sections, totalQ, answeredQ, progress);
                       const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
